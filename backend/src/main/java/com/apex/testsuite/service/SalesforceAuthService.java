@@ -59,6 +59,7 @@ public class SalesforceAuthService {
 
     @PostConstruct
     public void loadSessionFromDb() {
+        try {
         sessionRepository.findTopByOrderByLastActivityAtDesc().ifPresent(session -> {
             Instant lastActivity = session.getLastActivityAt();
             long minutesSinceActivity = Duration.between(lastActivity, Instant.now()).toMinutes();
@@ -83,6 +84,9 @@ public class SalesforceAuthService {
                 tryRefreshToken();
             }
         });
+        } catch (Exception e) {
+            log.warn("Could not load session from DB on startup (first run?): {}", e.getMessage());
+        }
     }
 
     public String buildAuthorizationUrl() {

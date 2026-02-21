@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ConnectedApp xmlns="http://soap.sforce.com/2006/04/metadata">
+    <contactEmail>vishesh100sharma@gmail.com</contactEmail>
+    <label>Apex Test Suite</label>
+    <oauthConfig>
+        <callbackUrl>http://localhost:8080/api/auth/callback</callbackUrl>
+        <consumerKey>ApexTestSuite</consumerKey>
+        <isAdminApproved>false</isAdminApproved>
+        <isConsumerSecretOptional>false</isConsumerSecretOptional>
+        <isIntrospectAllTokens>false</isIntrospectAllTokens>
+        <isPkceRequired>false</isPkceRequired>
+        <scopes>Full</scopes>
+        <scopes>RefreshToken</scopes>
+        <scopes>Api</scopes>
+    </oauthConfig>
+    <oauthPolicy>
+        <ipRelaxation>BYPASS</ipRelaxation>
+        <refreshTokenPolicy>infinite</refreshTokenPolicy>
+    </oauthPolicy>
+</ConnectedApp>

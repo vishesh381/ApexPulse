@@ -4,6 +4,8 @@ node_modules/
 # Build output
 frontend/dist/
 backend/target/
+
+# Database (H2 local DB — contains encrypted tokens)
 backend/data/
 
 # IDE
@@ -13,10 +15,12 @@ backend/data/
 *.swp
 *.swo
 
-# Environment
+# Environment / Secrets
 .env
-.env.local
-.env.*.local
+.env.*
+*.env
+backend/.env
+!.env.example
 
 # OS
 .DS_Store
@@ -26,9 +30,13 @@ Thumbs.db
 *.log
 logs/
 
-# Maven wrapper (already in repo, but jar may be large)
+# Maven wrapper
 !backend/.mvn/wrapper/maven-wrapper.properties
 
-# Salesforce
+# Claude Code local settings
+.claude/settings.local.json
+
+# Salesforce local auth
 SalesforceDevOrg/.sf/
 SalesforceDevOrg/.sfdx/
+.sfdx/

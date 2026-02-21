@@ -1,0 +1,385 @@
+ Plan to implement                                                                                                                          │
+│                                                                                                                                            │
+│ Apex Test Suite - Implementation Plan                                                                                                      │
+│                                                                                                                                            │
+│ Context                                                                                                                                    │
+│                                                                                                                                            │
+│ The project scaffolding exists (React frontend with placeholder pages, Spring Boot backend with auth stubs and empty test controllers,     │
+│ empty SFDX project). We need to build the full application: a polished Salesforce OAuth login, test class discovery, real-time test        │
+│ execution, historical data persistence, coverage dashboards with charts, and deploy everything to Render.                                  │
+│                                                                                                                                            │
+│ ---                                                                                                                                        │
+│ Phase 1: Authentication Flow & Login Page                                                                                                  │
+│                                                                                                                                            │
+│ Goal: Beautiful login page → Salesforce OAuth → land on Dashboard. All pages protected behind auth.                                        │
+│                                                                                                                                            │
+│ Backend (3 files)                                                                                                                          │
+│                                                                                                                                            │
+│ Action: MODIFY                                                                                                                             │
+│ File: backend/.../controller/SalesforceAuthController.java                                                                                 │
+│ What: Redirect callback to frontend, add /api/auth/user-info and /api/auth/logout endpoints                                                │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: backend/.../service/SalesforceAuthService.java                                                                                       │
+│ What: Add getUserInfo() (calls SF userinfo endpoint), logout(), getApiVersion()                                                            │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../dto/UserInfoResponse.java                                                                                                │
+│ What: Record: displayName, email, username, orgId, orgName                                                                                 │
+│                                                                                                                                            │
+│ Frontend (5 files)                                                                                                                         │
+│                                                                                                                                            │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/pages/Login.jsx                                                                                                         │
+│ What: Full-screen login with gradient background (indigo-to-blue), centered card, SF cloud icon, "Connect to Salesforce" button            │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/pages/AuthCallback.jsx                                                                                                  │
+│ What: Loading spinner on OAuth return, confirms auth via /api/auth/status, redirects to Dashboard                                          │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/context/AuthContext.jsx                                                                                                 │
+│ What: React context: isAuthenticated, user, loading, checkAuth, logout                                                                     │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/components/ProtectedRoute.jsx                                                                                           │
+│ What: Redirects to /login if unauthenticated                                                                                               │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: frontend/src/App.jsx                                                                                                                 │
+│ What: Wrap in AuthProvider, add Login/Callback routes, protect all other routes, show user info + logout in nav                            │
+│                                                                                                                                            │
+│ ---                                                                                                                                        │
+│ Phase 2: Salesforce Tooling API & Test Class Discovery                                                                                     │
+│                                                                                                                                            │
+│ Goal: Backend queries SF for Apex test classes. Frontend displays searchable class list. Dashboard shows real org stats.                   │
+│                                                                                                                                            │
+│ Backend (5 files)                                                                                                                          │
+│                                                                                                                                            │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../service/SalesforceToolingService.java                                                                                    │
+│ What: Central SF Tooling API service: queryToolingApi(soql), getTestClasses(), getOrgStats(). Uses @Cacheable                              │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../dto/ApexTestClassDTO.java                                                                                                │
+│ What: id, name, namespacePrefix                                                                                                            │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../dto/OrgStatsDTO.java                                                                                                     │
+│ What: totalClasses, testClasses, orgName                                                                                                   │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: backend/.../controller/TestRunController.java                                                                                        │
+│ What: Wire getTestClasses() to tooling service, add /api/tests/org-stats                                                                   │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: backend/.../config/CacheConfig.java                                                                                                  │
+│ What: Named Caffeine caches with different TTLs                                                                                            │
+│                                                                                                                                            │
+│ Frontend (2 files)                                                                                                                         │
+│                                                                                                                                            │
+│ ┌────────┬───────────────────────────────────┬──────────────────────────────────────────────────────────────────────────┐                  │
+│ │ Action │               File                │                                   What                                   │                  │
+│ ├────────┼───────────────────────────────────┼──────────────────────────────────────────────────────────────────────────┤                  │
+│ │ MODIFY │ frontend/src/pages/Dashboard.jsx  │ Fetch real org stats, populate stat cards                                │                  │
+│ ├────────┼───────────────────────────────────┼──────────────────────────────────────────────────────────────────────────┤                  │
+│ │ MODIFY │ frontend/src/pages/TestRunner.jsx │ Fetch test classes, display with checkboxes + search filter + select all │                  │
+│ └────────┴───────────────────────────────────┴──────────────────────────────────────────────────────────────────────────┘                  │
+│                                                                                                                                            │
+│ ---                                                                                                                                        │
+│ Phase 3: Test Execution with Real-Time WebSocket Progress                                                                                  │
+│                                                                                                                                            │
+│ Goal: Run selected tests → backend triggers SF async execution → polls for status → broadcasts progress via WebSocket → frontend shows     │
+│ live progress bar.                                                                                                                         │
+│                                                                                                                                            │
+│ Backend (8 files)                                                                                                                          │
+│                                                                                                                                            │
+│ Action: MODIFY                                                                                                                             │
+│ File: backend/.../service/SalesforceToolingService.java                                                                                    │
+│ What: Add runTestsAsync(), getTestQueueStatus(), getTestResults(), getCodeCoverage()                                                       │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../service/TestExecutionService.java                                                                                        │
+│ What: Orchestrates test lifecycle: trigger → poll every 3s → broadcast via WebSocket → finalize                                            │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../config/AsyncConfig.java                                                                                                  │
+│ What: @EnableAsync with thread pool                                                                                                        │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../dto/TestRunRequest.java                                                                                                  │
+│ What: List<String> classIds                                                                                                                │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../dto/TestProgressDTO.java                                                                                                 │
+│ What: testRunId, status, totalTests, completedTests, passCount, failCount, percentComplete                                                 │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../dto/TestResultDTO.java                                                                                                   │
+│ What: className, methodName, outcome, message, stackTrace, runTimeMs                                                                       │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../dto/CodeCoverageDTO.java                                                                                                 │
+│ What: classOrTriggerName, linesCovered, linesUncovered, coveragePercent                                                                    │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: backend/.../controller/TestRunController.java                                                                                        │
+│ What: Wire run/results/coverage endpoints to services                                                                                      │
+│                                                                                                                                            │
+│ Frontend (4 files)                                                                                                                         │
+│                                                                                                                                            │
+│ Action: MODIFY                                                                                                                             │
+│ File: frontend/src/pages/TestRunner.jsx                                                                                                    │
+│ What: Wire "Run" button, show live progress bar with pass/fail counters via WebSocket                                                      │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/components/TestProgressBar.jsx                                                                                          │
+│ What: Animated progress bar with pass/fail segments                                                                                        │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/components/TestClassSelector.jsx                                                                                        │
+│ What: Extracted class list with checkboxes, search, select all                                                                             │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: frontend/src/services/websocket.js                                                                                                   │
+│ What: Support multiple topic subscriptions, return unsubscribe fn                                                                          │
+│                                                                                                                                            │
+│ ---                                                                                                                                        │
+│ Phase 4: Historical Data Persistence (JPA + PostgreSQL)                                                                                    │
+│                                                                                                                                            │
+│ Goal: Persist all test runs, results, and coverage snapshots to DB. Enable historical queries.                                             │
+│                                                                                                                                            │
+│ Backend (11 files)                                                                                                                         │
+│                                                                                                                                            │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../entity/TestRun.java                                                                                                      │
+│ What: JPA entity: id, asyncApexJobId, orgId, status, passCount, failCount, startedAt, completedAt                                          │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../entity/TestResult.java                                                                                                   │
+│ What: JPA entity: className, methodName, outcome, message, stackTrace, runTimeMs                                                           │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../entity/CoverageSnapshot.java                                                                                             │
+│ What: JPA entity: className, linesCovered, linesUncovered, coveragePercent                                                                 │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../entity/TestRunStatus.java                                                                                                │
+│ What: Enum: QUEUED, PROCESSING, COMPLETED, FAILED, ABORTED                                                                                 │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../entity/TestOutcome.java                                                                                                  │
+│ What: Enum: PASS, FAIL, SKIP, COMPILE_FAIL                                                                                                 │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../repository/TestRunRepository.java                                                                                        │
+│ What: JpaRepository with custom queries                                                                                                    │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../repository/TestResultRepository.java                                                                                     │
+│ What: JpaRepository                                                                                                                        │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../repository/CoverageSnapshotRepository.java                                                                               │
+│ What: JpaRepository                                                                                                                        │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../service/TestHistoryService.java                                                                                          │
+│ What: Save runs/results, get paginated history, get trend data for charts                                                                  │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/.../controller/TestHistoryController.java                                                                                    │
+│ What: /api/history/runs, /api/history/runs/{id}, /api/history/trends/pass-rate, /api/history/trends/coverage                               │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: backend/.../service/TestExecutionService.java                                                                                        │
+│ What: Persist TestRun + results after completion                                                                                           │
+│                                                                                                                                            │
+│ ---                                                                                                                                        │
+│ Phase 5: Full Frontend - Results, Coverage & Charts                                                                                        │
+│                                                                                                                                            │
+│ Goal: Complete all frontend pages with historical data, detailed results, coverage dashboard, and Recharts trend charts.                   │
+│                                                                                                                                            │
+│ Frontend (10 files)                                                                                                                        │
+│                                                                                                                                            │
+│ Action: MODIFY                                                                                                                             │
+│ File: frontend/src/pages/TestResults.jsx                                                                                                   │
+│ What: Historical runs table with pagination, clickable rows                                                                                │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/pages/TestRunDetail.jsx                                                                                                 │
+│ What: Per-method results table with outcome badges, error expansion, filters (All/Pass/Fail)                                               │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/pages/CoverageDashboard.jsx                                                                                             │
+│ What: Org coverage %, per-class coverage table with mini progress bars, search/sort                                                        │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: frontend/src/pages/Dashboard.jsx                                                                                                     │
+│ What: Real stat cards, PassRate line chart, Coverage area chart, recent runs list                                                          │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/components/StatCard.jsx                                                                                                 │
+│ What: Reusable stat card: title, value, color                                                                                              │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/components/PassRateChart.jsx                                                                                            │
+│ What: Recharts LineChart for pass rate trend                                                                                               │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/components/CoverageTrendChart.jsx                                                                                       │
+│ What: Recharts AreaChart for coverage trend                                                                                                │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/components/TestResultBadge.jsx                                                                                          │
+│ What: Colored badge: Pass (green), Fail (red), Skip (yellow)                                                                               │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: frontend/src/components/CoverageBar.jsx                                                                                              │
+│ What: Inline mini progress bar for coverage %                                                                                              │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: frontend/src/App.jsx                                                                                                                 │
+│ What: Add routes for /results/:runId, /coverage, add Coverage nav link                                                                     │
+│                                                                                                                                            │
+│ ---                                                                                                                                        │
+│ Phase 6: Error Handling & Polish                                                                                                           │
+│                                                                                                                                            │
+│ Goal: Production-quality UX with error handling, loading states, and toast notifications.                                                  │
+│                                                                                                                                            │
+│ Backend (4 files)                                                                                                                          │
+│                                                                                                                                            │
+│ ┌────────┬────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────┐               │
+│ │ Action │                            File                            │                        What                        │               │
+│ ├────────┼────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────┤               │
+│ │ CREATE │ backend/.../exception/GlobalExceptionHandler.java          │ @ControllerAdvice: consistent JSON error responses │               │
+│ ├────────┼────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────┤               │
+│ │ CREATE │ backend/.../exception/SalesforceApiException.java          │ For SF API errors (502)                            │               │
+│ ├────────┼────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────┤               │
+│ │ CREATE │ backend/.../exception/AuthenticationRequiredException.java │ For missing token (401)                            │               │
+│ ├────────┼────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────┤               │
+│ │ MODIFY │ backend/.../service/SalesforceAuthService.java             │ Add refresh token logic                            │               │
+│ └────────┴────────────────────────────────────────────────────────────┴────────────────────────────────────────────────────┘               │
+│                                                                                                                                            │
+│ Frontend (5 files)                                                                                                                         │
+│                                                                                                                                            │
+│ ┌────────┬─────────────────────────────────────────────┬───────────────────────────────────────────────────────────────┐                   │
+│ │ Action │                    File                     │                             What                              │                   │
+│ ├────────┼─────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤                   │
+│ │ CREATE │ frontend/src/components/LoadingSkeleton.jsx │ Pulse-animated placeholder blocks                             │                   │
+│ ├────────┼─────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤                   │
+│ │ CREATE │ frontend/src/components/ErrorBanner.jsx     │ Red banner with retry button                                  │                   │
+│ ├────────┼─────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤                   │
+│ │ CREATE │ frontend/src/components/Toast.jsx           │ Toast notification component                                  │                   │
+│ ├────────┼─────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤                   │
+│ │ CREATE │ frontend/src/context/ToastContext.jsx       │ Toast context provider                                        │                   │
+│ ├────────┼─────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤                   │
+│ │ MODIFY │ frontend/src/services/api.js                │ Axios interceptors: 401 → redirect to login, 5xx → show toast │                   │
+│ └────────┴─────────────────────────────────────────────┴───────────────────────────────────────────────────────────────┘                   │
+│                                                                                                                                            │
+│ ---                                                                                                                                        │
+│ Phase 7: Deploy to Render                                                                                                                  │
+│                                                                                                                                            │
+│ Goal: Both frontend and backend live on Render free tier with PostgreSQL.                                                                  │
+│                                                                                                                                            │
+│ Files (4 files)                                                                                                                            │
+│                                                                                                                                            │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/src/main/resources/application-prod.properties                                                                               │
+│ What: PostgreSQL config via DATABASE_URL, CORS for prod frontend URL                                                                       │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: backend/Dockerfile                                                                                                                   │
+│ What: Multi-stage: build with Maven, run with JRE 17 Alpine                                                                                │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: CREATE                                                                                                                             │
+│ File: render.yaml                                                                                                                          │
+│ What: Render Blueprint: Docker backend service, static frontend service, free PostgreSQL DB                                                │
+│ ────────────────────────────────────────                                                                                                   │
+│ Action: MODIFY                                                                                                                             │
+│ File: backend/.../config/WebSocketConfig.java                                                                                              │
+│ What: Use configurable allowed origins instead of hardcoded localhost                                                                      │
+│                                                                                                                                            │
+│ Post-deploy steps                                                                                                                          │
+│                                                                                                                                            │
+│ - Update Salesforce Connected App callback URL to https://<backend>.onrender.com/api/auth/callback                                         │
+│ - Set env vars on Render: SF_CLIENT_ID, SF_CLIENT_SECRET, SF_REDIRECT_URI, FRONTEND_URL                                                    │
+│                                                                                                                                            │
+│ ---                                                                                                                                        │
+│ Execution Order                                                                                                                            │
+│                                                                                                                                            │
+│ Phase 1 (Auth) → Phase 2 (Tooling API) → Phase 3 (Test Execution) → Phase 4 (Persistence) → Phase 5 (Frontend) → Phase 6 (Polish) → Phase  │
+│ 7 (Deploy)                                                                                                                                 │
+│                                                                                                                                            │
+│ Verification                                                                                                                               │
+│                                                                                                                                            │
+│ After each phase:                                                                                                                          │
+│ - Phase 1: Open app → see login page → OAuth flow → land on Dashboard                                                                      │
+│ - Phase 2: Dashboard shows real SF org stats, TestRunner lists test classes                                                                │
+│ - Phase 3: Select classes → Run → see live WebSocket progress → results                                                                    │
+│ - Phase 4: Check H2 console — runs/results persisted, history endpoint works                                                               │
+│ - Phase 5: Charts render, results page shows historical data, coverage dashboard works                                                     │
+│ - Phase 6: 401 redirects to login, errors show banners, loading skeletons appear                                                           │
+│ - Phase 7: App live on Render URL, full OAuth flow works in production                                                                     │
+│                                                                                                                                            │
+│ Total: ~54 files (30 new, 24 modifications across phases)       
+
+Is the Phase 7 done or you want to know something?                                                                                              
+● Phase 7 is fully implemented. All three deployment files are created and ready:                                                                                                                                                                                                           
+  1. backend/Dockerfile — Multi-stage build (Maven → JRE 17 Alpine), activates prod profile                                                     2. backend/src/main/resources/application-prod.properties — PostgreSQL via DATABASE_URL, configurable CORS/frontend URL, configurable port    3. render.yaml — Render Blueprint with Docker backend service, static frontend with SPA rewrites, and free PostgreSQL database                                                                                                                                                              What's left for you to do manually (post-deploy steps):                                                                                     
+
+  - Update your Salesforce Connected App callback URL to https://<your-backend>.onrender.com/api/auth/callback
+  - Set these env vars on Render:
+    - SF_CLIENT_ID
+    - SF_CLIENT_SECRET
+    - SF_REDIRECT_URI (the new callback URL above)
+    - FRONTEND_URL (auto-populated from render.yaml if using Blueprint)
+
+  Everything is code-complete and both builds compile successfully. Nothing else needed from me unless you want changes.
+
+
+ What Salesforce Gives You (Developer Console / Setup)                                                                                       
+  
+  - Run tests → wait → see results → gone after you navigate away                                                                               - No historical data — every run is fire-and-forget                                                                                         
+  - No trend tracking — "is our code quality improving or declining?" — no answer
+  - Coverage data is scattered across multiple Setup pages
+  - No real-time progress — you submit and poll manually
+  - Governor limits on Tooling API calls if you're querying programmatically
+  - UI is clunky, slow, and not designed for test monitoring workflows
+
+  What This App Solves
+
+  ┌────────────────────┬───────────────────────────────────┬───────────────────────────────────────────────────────────┐
+  │      Problem       │         Salesforce Native         │                      Apex Test Suite                      │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ History            │ No persistence — results vanish   │ Every run saved to DB with full method-level detail       │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Trends             │ None                              │ Pass rate & coverage charts over 30+ days                 │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Real-time progress │ Refresh manually                  │ WebSocket live progress bar with pass/fail counts         │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Coverage dashboard │ Fragmented across pages           │ Single page: org %, per-class bars, search, sort          │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Governor limits    │ Direct API calls eat your limits  │ Spring Boot middleware batches & caches SF API calls      │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Caching            │ None — every page load re-queries │ Caffeine cache (10 min TTL) on test classes & org stats   │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ UX                 │ Developer Console / Setup UI      │ Modern React dashboard, one-click runs, clickable results │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Compare runs       │ Impossible                        │ Historical table — see any past run's full results        │
+  ├────────────────────┼───────────────────────────────────┼───────────────────────────────────────────────────────────┤
+  │ Team visibility    │ Only person running sees results  │ Web app — share URL, anyone can see dashboard             │
+  └────────────────────┴───────────────────────────────────┴───────────────────────────────────────────────────────────┘
+
+  The Key Architectural Win
+
+  Browser → Spring Boot (cache + persist + WebSocket) → Salesforce API
+
+  Spring Boot sits in the middle and:
+  1. Caches test class lists and org stats so you're not burning API calls on every page load
+  2. Persists every run to PostgreSQL — Salesforce doesn't keep this for you
+  3. Polls asynchronously and pushes updates via WebSocket — no manual refreshing
+  4. Aggregates coverage and pass rate data into trend charts that Salesforce simply doesn't offer
+
+  The biggest differentiator is historical intelligence — after a month of using this, you can see whether your org's test health is trending 
+  up or down, which is impossible in native Salesforce.

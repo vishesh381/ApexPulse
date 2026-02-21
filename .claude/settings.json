@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "mcp_servers": {
+    "salesforce": {
+      "command": "npx",
+      "args": ["-y", "@tsmztech/mcp-server-salesforce"],
+      "env": {
+        "SALESFORCE_CONNECTION_TYPE": "Salesforce_CLI"
+      }
+    },
+    "spring-docs": {
+      "command": "npx",
+      "args": ["-y", "@enokdev/springdocs-mcp@latest"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_github_token"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y", "@modelcontextprotocol/server-filesystem",
+        "/path/to/apex-test-suite"
+      ]
+    }
+  }
+}

@@ -6,8 +6,10 @@ let stompClient = null
 export function connectWebSocket() {
   if (stompClient?.connected) return
 
+  const wsBase = import.meta.env.VITE_API_URL || ''
+
   stompClient = new Client({
-    webSocketFactory: () => new SockJS('/ws'),
+    webSocketFactory: () => new SockJS(`${wsBase}/ws`),
     onConnect: () => {
       console.log('WebSocket connected')
     },
